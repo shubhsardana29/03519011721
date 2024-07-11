@@ -3,18 +3,37 @@ import { useParams } from 'react-router-dom';
 import { fetchProducts, Product } from '../services/api';
 
 const ProductDetail = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams<{ id?: string }>();
   const [product, setProduct] = useState<Product | null>(null);
 
   useEffect(() => {
     const getProduct = async () => {
-      const products = await fetchProducts();
-      const product = products.find((p: Product) => p.id === parseInt(id!, 10));
-      setProduct(product || null);
+      try {
+        if (!id) {
+          throw new Error('Product ID is undefined');
+        }
+  
+        const products = await fetchProducts();
+        console.log('Fetched products:', products);
+  
+        // Find the product by productName
+        const selectedProduct = products.find((p: Product) => p.productName === id);
+  
+        if (!selectedProduct) {
+          console.error(`Product with ID "${id}" not found`);
+          throw new Error('Product not found');
+        }
+  
+        setProduct(selectedProduct);
+      } catch (error) {
+        console.error('Error fetching or processing product:', error);
+        setProduct(null); // Clear product state on error
+      }
     };
-
+  
     getProduct();
   }, [id]);
+  
 
   if (!product) {
     return <div>Product not found</div>;
