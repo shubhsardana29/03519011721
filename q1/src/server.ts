@@ -1,16 +1,13 @@
-import express from 'express';
-import { Application } from 'express';
-import { registerRoutes } from './routes';
+import app from './app';
 
-const app: Application = express();
+const port = process.env.PORT || 3000;
 
-registerRoutes(app);
 
 app.get('/', (req, res) => {
-    res.send('Server is Up &  running');
-    });
+  res.send('Server is up & running');
+}
+);
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+app.listen(port, () => {
+  console.log(`Server running at http://localhost:${port}`);
 });

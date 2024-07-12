@@ -1,25 +1,35 @@
-import https from 'https';
+import axios from 'axios';
+import { v4 as uuidv4 } from 'uuid';
+import NodeCache from 'node-cache';
+import { Product } from '../types';
 
-export const fetchFromAPI = async (url: string, token: string): Promise<any> => {
-  return new Promise((resolve, reject) => {
-    const options = {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    };
+const BASE_URL = 'http://20.244.56.144/test';
+const cache = new NodeCache({ stdTTL: 30 });
 
-    https.get(url, options, (res) => {
-      let data = '';
+export async function fetchProductsFromCompany(company: string, category: string, top: number, minPrice: number, maxPrice: number, token: string): Promise<Product[]> {
+  const cacheKey = `${company}-${category}-${top}-${minPrice}-${maxPrice}`;
+  const cachedData = cache.get<Product[]>(cacheKey);
+  
+  if (cachedData) {
+    return cachedData;
+  }
 
-      res.on('data', (chunk) => {
-        data += chunk;
-      });
-
-      res.on('end', () => {
-        resolve(JSON.parse(data));
-      });
-    }).on('error', (error) => {
-      reject(error);
-    });
+  const url = `${BASE_URL}/companies/${company}/categories/${category}/products?top=${top}&minPrice=${minPrice}&maxPrice=${maxPrice}`;
+  const response = await axios.get(url, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
   });
-};
+  const products = response.data.map((product: Product) => ({ ...product, id: uuidv4(), company }));
+  
+  cache.set(cacheKey, products);
+  return products;
+}
+
+export function dynamicSort(products: Product[], sortBy: keyof Product, sortOrder: 'asc' | 'desc'): Product[] {
+  return [...products].sort((a, b) => {
+    if (a[sortBy] < b[sortBy]) return sortOrder === 'asc' ? -1 : 1;
+    if (a[sortBy] > b[sortBy]) return sortOrder === 'asc' ? 1 : -1;
+    return 0;
+  });
+}

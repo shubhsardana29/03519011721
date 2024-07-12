@@ -1,69 +1,44 @@
-import { fetchFromAPI } from '../utils/apiUtils';
+import { Product, ApiResponse, QueryParams } from '../types';
+import { fetchProductsFromCompany, dynamicSort } from '../utils/apiUtils';
 
-const cache: { [key: string]: any } = {};
+const COMPANIES = ['AMZ', 'FLP', 'SNP', 'MYN', 'AZO'];
+const CATEGORIES = ['Phone', 'Computer', 'TV', 'Earphone', 'Tablet', 'Charger', 'Mouse', 'Keypad', 'Bluetooth', 'Pendrive', 'Remote', 'Speaker', 'Headset', 'Laptop', 'PC'];
 
-export const fetchProducts = async (
-  categoryname: string,
-  n: number,
-  page: number,
-    sort: string,
-  token: string
-) => {
-  const cacheKey = `${categoryname}_${n}_${page}_${sort}`;
-  if (cache[cacheKey]) {
-    return cache[cacheKey];
+export async function getProducts(category: string, queryParams: QueryParams, token: string): Promise<ApiResponse> {
+  const { n = 10, page = 1, sortBy = 'price', sortOrder = 'asc', minPrice = 0, maxPrice = Number.MAX_SAFE_INTEGER } = queryParams;
+
+  if (!CATEGORIES.includes(category)) {
+    throw new Error('Invalid category');
   }
 
-  const companies = ['AMZ', 'FLP', 'SNP', 'MYN', 'AZO'];
-  const products: any[] = [];
-
-  for (const company of companies) {
-    const url = `http://20.244.56.144/test/companies/${company}/categories/${categoryname}/products?top=${n}&page=${page}`;
-    const data = await fetchFromAPI(url,token);
-    products.push(...data);
+  let allProducts: Product[] = [];
+  for (const company of COMPANIES) {
+    const products = await fetchProductsFromCompany(company, category, n * page, minPrice, maxPrice, token);
+    allProducts = allProducts.concat(products);
   }
 
-  // Sort products based on the provided sort parameter
-  products.sort((a, b) => {
-    if (sort === 'price') {
-      return a.price - b.price;
-    } else if (sort === 'rating') {
-      return b.rating - a.rating;
-    } else if (sort === 'discount') {
-      return b.discount - a.discount;
-    } else {
-      return 0;
-    }
-  });
+  const sortedProducts = dynamicSort(allProducts, sortBy as keyof Product, sortOrder);
+  const totalProducts = sortedProducts.length;
+  const totalPages = Math.ceil(totalProducts / n);
+  const paginatedProducts = sortedProducts.slice((page - 1) * n, page * n);
 
-  const topProducts = products.slice(0, n);
+  return {
+    products: paginatedProducts,
+    totalPages,
+    currentPage: page
+  };
+}
 
-  cache[cacheKey] = topProducts;
-  return topProducts;
-};
-
-export const fetchProductDetails = async (
-  categoryname: string,
-    productid: string,
-  token: string
-) => {
-  const cacheKey = `${categoryname}_${productid}`;
-  if (cache[cacheKey]) {
-    return cache[cacheKey];
+export async function getProductById(category: string, productId: string, token: string): Promise<Product | null> {
+  if (!CATEGORIES.includes(category)) {
+    throw new Error('Invalid category');
   }
 
-  const companies = ['AMZ', 'FLP', 'SNP', 'MYN', 'AZO'];
-
-  for (const company of companies) {
-    const url = `http://20.244.56.144/test/companies/${company}/categories/${categoryname}/products/${productid}`;
-    try {
-      const data = await fetchFromAPI(url,token);
-      cache[cacheKey] = data;
-      return data;
-    } catch (error) {
-      // Product not found in the current company, continue to the next one
-    }
+  for (const company of COMPANIES) {
+    const products = await fetchProductsFromCompany(company, category, 1, 0, Number.MAX_SAFE_INTEGER, token);
+    const product = products.find(p => p.id === productId);
+    if (product) return product;
   }
 
   return null;
-};
+}
