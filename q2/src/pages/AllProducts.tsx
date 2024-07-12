@@ -1,51 +1,85 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { fetchProducts, Product } from '../services/api';
+import React, { useState, useEffect } from 'react';
+import { getProducts } from '../services/api';
+import { Product, QueryParams } from '../types';
+import ProductCard from '../components/ProductCard';
+import Pagination from '../components/Pagination';
 
-const AllProducts = () => {
+const AllProducts: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const [totalPages, setTotalPages] = useState(1);
+  const [queryParams, setQueryParams] = useState<QueryParams>({
+    category: '',
+    company: '',
+    minRating: 0,
+    minPrice: 0,
+    maxPrice: 10000,
+    availability: '',
+    sortBy: 'price',
+    sortOrder: 'asc',
+    page: 1,
+    n: 10
+  });
 
   useEffect(() => {
-    const getProducts = async () => {
-      try {
-        const products = await fetchProducts();
-        setProducts(products);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } catch (error: any) {
-        setError(error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
+    fetchProducts();
+  }, [queryParams]);
 
-    getProducts();
-  }, []);
+  const fetchProducts = async () => {
+    try {
+      const response = await getProducts(queryParams);
+      setProducts(response.products);
+      setTotalPages(response.totalPages);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    }
+  };
 
-  if (loading) {
-    return <div>Loading...</div>;
-  }
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setQueryParams(prev => ({ ...prev, [name]: value }));
+  };
 
-  if (error) {
-    return <div>Error: {error}</div>;
-  }
+  const handlePageChange = (page: number) => {
+    setQueryParams(prev => ({ ...prev, page }));
+  };
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">All Products</h1>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {products.map((product: Product) => (
-          <div key={product.id} className="border p-4 rounded-lg shadow hover:shadow-lg transition-shadow">
-            <h2 className="text-lg font-semibold">{product.productName}</h2>
-            <p>Price: <span className="font-bold">${product.price}</span></p>
-            <p>Rating: <span className="text-yellow-500">{product.rating}</span></p>
-            <p>Discount: <span className="text-green-500">{product.discount}%</span></p>
-            <p>Availability: <span className={`font-bold ${product.availability === 'yes' ? 'text-green-600' : 'text-red-600'}`}>{product.availability}</span></p>
-            <Link to={`/product/${product.id}`} className="text-blue-500 mt-2 block">View Details</Link>
-          </div>
+    <div className="space-y-4">
+      <h1 className="text-3xl font-bold">Top Products</h1>
+      
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <input className="border p-2 rounded" name="category" placeholder="Category" value={queryParams.category} onChange={handleInputChange} />
+        <input className="border p-2 rounded" name="company" placeholder="Company" value={queryParams.company} onChange={handleInputChange} />
+        <input className="border p-2 rounded" name="minRating" type="number" placeholder="Min Rating" value={queryParams.minRating} onChange={handleInputChange} />
+        <input className="border p-2 rounded" name="minPrice" type="number" placeholder="Min Price" value={queryParams.minPrice} onChange={handleInputChange} />
+        <input className="border p-2 rounded" name="maxPrice" type="number" placeholder="Max Price" value={queryParams.maxPrice} onChange={handleInputChange} />
+        <select className="border p-2 rounded" name="availability" value={queryParams.availability} onChange={handleInputChange}>
+          <option value="">All Availability</option>
+          <option value="In Stock">In Stock</option>
+          <option value="Out of Stock">Out of Stock</option>
+        </select>
+        <select className="border p-2 rounded" name="sortBy" value={queryParams.sortBy} onChange={handleInputChange}>
+          <option value="price">Price</option>
+          <option value="rating">Rating</option>
+          <option value="discount">Discount</option>
+        </select>
+        <select className="border p-2 rounded" name="sortOrder" value={queryParams.sortOrder} onChange={handleInputChange}>
+          <option value="asc">Ascending</option>
+          <option value="desc">Descending</option>
+        </select>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {products.map((product) => (
+          <ProductCard key={product.id} product={product} />
         ))}
       </div>
+
+      <Pagination 
+        currentPage={queryParams.page || 1}
+        totalPages={totalPages}
+        onPageChange={handlePageChange}
+      />
     </div>
   );
 };

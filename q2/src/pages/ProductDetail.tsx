@@ -1,57 +1,45 @@
-import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { fetchProducts, Product } from '../services/api';
+import React, { useState, useEffect } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { getProductById } from '../services/api';
+import { Product } from '../types';
 
-const ProductDetail = () => {
-  const { id } = useParams<{ id?: string }>();
+const ProductDetail: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
   const [product, setProduct] = useState<Product | null>(null);
 
   useEffect(() => {
-    const getProduct = async () => {
-      try {
-        if (!id) {
-          throw new Error('Product ID is undefined');
-        }
-  
-        const products = await fetchProducts();
-        console.log('Fetched products:', products);
-  
-        // Find the product by productName
-        const selectedProduct = products.find((p: Product) => p.productName === id);
-  
-        if (!selectedProduct) {
-          console.error(`Product with ID "${id}" not found`);
-          throw new Error('Product not found');
-        }
-  
-        setProduct(selectedProduct);
-      } catch (error) {
-        console.error('Error fetching or processing product:', error);
-        setProduct(null); // Clear product state on error
-      }
-    };
-  
-    getProduct();
+    if (id) {
+      fetchProduct(id);
+    }
   }, [id]);
-  
+
+  const fetchProduct = async (productId: string) => {
+    try {
+      const data = await getProductById(productId);
+      setProduct(data);
+    } catch (error) {
+      console.error('Error fetching product:', error);
+    }
+  };
 
   if (!product) {
-    return <div>Product not found</div>;
+    return <div>Loading...</div>;
   }
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-3xl font-bold mb-4">{product.productName}</h1>
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="flex-1">
-          <p>Price: <span className="font-bold">${product.price}</span></p>
-          <p>Rating: <span className="text-yellow-500">{product.rating}</span></p>
-          <p>Discount: <span className="text-green-500">{product.discount}%</span></p>
-          <p>Availability: <span className={`font-bold ${product.availability === 'yes' ? 'text-green-600' : 'text-red-600'}`}>{product.availability}</span></p>
-        </div>
-        <div className="flex-1">
-          <img src="https://via.placeholder.com/300" alt={product.productName} className="rounded-lg shadow" />
-        </div>
+    <div className="max-w-2xl mx-auto">
+      <div className="border rounded p-4 shadow-md">
+        <img src={`https://picsum.photos/seed/${product.id}/400/400`} alt={product.name} className="w-full h-64 object-cover mb-4" />
+        <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
+        <p className="text-xl mb-2">Company: {product.company}</p>
+        <p className="mb-2">Category: {product.category}</p>
+        <p className="mb-2">Price: ${product.price}</p>
+        <p className="mb-2">Rating: {product.rating}</p>
+        <p className="mb-2">Discount: {product.discount}%</p>
+        <p className="mb-4">Availability: {product.availability}</p>
+        <Link to="/" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+          Back to All Products
+        </Link>
       </div>
     </div>
   );
